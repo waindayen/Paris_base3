@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Fonction pour vérifier si l'utilisateur est connecté
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Fonction pour vérifier si l'utilisateur est admin
+    function isAdmin() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'adminuser';
+    }
+
+    // Fonction pour vérifier si l'utilisateur est API
+    function isApiUser() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'apiuser';
+    }
+
+    // Règles pour la collection users
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // Règles pour la configuration des odds
+    match /odds_config/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && (isAdmin() || isApiUser());
+    }
+
+    // Règles pour la configuration des sports
+    match /sports_config/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && (isAdmin() || isApiUser());
+    }
+
+    // Règles pour les lottos
+    match /lottos/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && isAdmin();
+    }
+
+    // Règles pour les participations aux lottos
+    match /lotto_participations/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // Règles pour les résultats des lottos
+    match /lotto_prizes/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && isAdmin();
+    }
+
+    // Règles pour les paris
+    match /bets/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // Règles par défaut
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
